@@ -12,6 +12,34 @@
       - kamailio_config_file_content
     fail_msg: The variable "kamailio_config_file_content" must be provided
 
+# Ensure the unattended-upgrades are disabled.
+# Besides unpredictable nature of these upgrades 
+# (they can restart the services at random times, or even break the system),
+# the unattended-upgrades are not compatible with Kamailio.
+# After the system upgrade, the network interfaces and all other services (including Kamailio)
+# are restarted. When Kamailio is restarting, the network interface may be still down,
+# which leads to DNS resolution issues and Kamailio dispatcher module is not loading the 
+# remote destinations into memory.
+# This is probably can be fixed by forcing the dispatcher module to not do DNS resolution at startup.
+
+- name: Check if unattended-upgrades is installed
+  stat:
+    path: /etc/apt/apt.conf.d/50unattended-upgrades
+  register: unattended_upgrades
+
+- name: Stop unattended-upgrades
+  service:
+    name: unattended-upgrades
+    state: stopped
+  when: unattended_upgrades.stat.exists
+
+- name: Delete unattended-upgrades
+  apt:
+    name: unattended-upgrades
+    state: absent
+  when: unattended_upgrades.stat.exists
+  notify: reload systemd
+
 - name: Add Kamailio group
   group:
     name: "{{ kamailio_group }}"
