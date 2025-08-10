@@ -60,3 +60,8 @@
   service:
     name: "{{ kamailio_service_name }}"
     enabled: true
+
+- name: Start Kamailio service
+  service:
+    name: "{{ kamailio_service_name }}"
+    state: started
