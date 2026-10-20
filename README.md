@@ -116,8 +116,9 @@ production: production hosts build Kamailio with the role.
   versions in `image/versions.json`, or only the version in the `kamailio_version`
   input. A manual run on another branch builds and smoke-tests, but does not push.
 
-The first push of a new image name creates a private GHCR package; an organization
-owner must make it public once in the package settings (Change visibility).
+The first push of a new image name creates a GHCR package. After the first push,
+check that the package is public in its settings, and change its visibility if it
+isn't. Public images can be pulled without logging in.
 
 To add a version, add it to `image/versions.json` and merge the change to `master`.
 To build a version once without changing the file:
