@@ -68,3 +68,69 @@ Molecule variables:
 | `MOLECULE_DISTRO`            | `ubuntu2404` | Container OS: `ubuntu2204` or `ubuntu2404`   |
 | `MOLECULE_KAMAILIO_VERSION`  | `5.8.3`      | Value of `kamailio_version`                  |
 | `MOLECULE_ANSIBLE_VERBOSITY` | `0`          | Ansible verbosity, 0-3 (same as `-v`-`-vvv`) |
+
+## Test images
+
+The repository publishes systemd test images with Kamailio already built by this
+role's install tasks:
+
+```text
+ghcr.io/miarec/kamailio:<kamailio version>-<distribution>
+```
+
+For example, `ghcr.io/miarec/kamailio:5.8.3-ubuntu2404`. Each image is multi-arch
+(`linux/amd64` and `linux/arm64`) and starts from
+`ghcr.io/miarec/<distribution>-systemd`. The per-architecture tags (for example
+`5.8.3-ubuntu2404-arm64`) are intermediate build results.
+
+Use the images in tests of playbooks that use this role. When the role runs against a
+container from the image, it finds `/opt/kamailio/sbin/kamailio`, skips the build,
+and only configures and starts Kamailio. Run the container the same way as the
+systemd base image, for example in Molecule:
+
+```yaml
+platforms:
+  - name: kamailio
+    image: ghcr.io/miarec/kamailio:5.8.3-ubuntu2404
+    command: ""
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+```
+
+The image contains the Kamailio binaries, the `kamailio` user and group, the build
+dependencies, and `rsyslog`. It contains no Kamailio configuration, and the
+`kamailio` service is not installed until the role runs. Do not use the images in
+production: production hosts build Kamailio with the role.
+
+### Versions
+
+`image/versions.json` lists the Kamailio versions and distributions to build. The
+`Test images` workflow (`.github/workflows/image.yml`) builds every combination:
+
+- On pull requests, it builds and smoke-tests the images, but does not push them.
+- On pushes to `master`, it builds, smoke-tests, and pushes the images.
+- When run manually (`workflow_dispatch`), it builds and pushes the versions in
+  `image/versions.json`, or only the version in the `kamailio_version` input.
+
+To add a version, add it to `image/versions.json` and merge the change to `master`.
+To build a version once without changing the file:
+
+```bash
+gh workflow run image.yml -f kamailio_version=5.8.4
+```
+
+### Build an image locally
+
+`image/build.sh` starts a container from the systemd base image, runs the role in it
+with `image/playbook.yml`, removes the Kamailio configuration, and commits the
+container for the architecture of your Docker host. `image/smoke-test.sh` runs the
+role against a container from the new image and fails if the role builds Kamailio
+again or the service does not start.
+
+```bash
+image/build.sh 5.8.3 ubuntu2404 ghcr.io/miarec/kamailio:5.8.3-ubuntu2404
+image/smoke-test.sh 5.8.3 ghcr.io/miarec/kamailio:5.8.3-ubuntu2404
+```
