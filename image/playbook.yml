@@ -1,0 +1,92 @@
+---
+# Runs the role in a systemd container, for image/build.sh and
+# image/smoke-test.sh. Do not run it against a real host: with
+# kamailio_image_build=true it removes the Kamailio configuration.
+#
+# Variables (pass with -e):
+#   kamailio_version          Kamailio version to install.
+#   kamailio_image_build      true: after the role, remove the configuration
+#                             so the image contains only what the install
+#                             tasks created.
+#   kamailio_image_prebuilt   true: fail if the role did not skip the build.
+- name: Run the Kamailio role in a test image container
+  hosts: all
+  become: true
+
+  vars:
+    kamailio_config_file_content: "{{ lookup('template', playbook_dir ~ '/../molecule/default/templates/kamailio.cfg.j2') }}"
+    kamailio_image_build: false
+    kamailio_image_prebuilt: false
+
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: true
+        cache_valid_time: 600
+      changed_when: false
+
+    - name: Install rsyslog
+      package:
+        name: rsyslog
+        state: present
+
+  roles:
+    - role: "{{ playbook_dir }}/.." # noqa: role-name[path]
+
+  post_tasks:
+    - name: Check that the role skipped the build
+      assert:
+        that:
+          - kamailio_exists.rc == 0
+        fail_msg: The role did not find {{ kamailio_install_dir }}/sbin/kamailio and built Kamailio from source
+      when: kamailio_image_prebuilt | bool
+
+    - name: Read the installed Kamailio version
+      command: "{{ kamailio_install_dir }}/sbin/kamailio -v"
+      register: _kamailio_version_output
+      changed_when: false
+
+    - name: Check the installed Kamailio version
+      assert:
+        that:
+          - "('version: kamailio ' ~ kamailio_version ~ ' ') in _kamailio_version_output.stdout"
+        fail_msg: "Expected Kamailio {{ kamailio_version }}, found: {{ _kamailio_version_output.stdout_lines | first }}"
+
+    - name: Flush handlers to restart Kamailio with the current configuration
+      meta: flush_handlers
+
+    - name: Read the service states
+      service_facts:
+
+    - name: Check that Kamailio is running
+      assert:
+        that:
+          - ansible_facts['services'][kamailio_service_name ~ '.service']['state'] == 'running'
+
+    - name: Remove the Kamailio configuration from the image
+      when: kamailio_image_build | bool
+      block:
+        - name: Stop and disable Kamailio
+          service:
+            name: "{{ kamailio_service_name }}"
+            state: stopped
+            enabled: false
+
+        - name: Remove the files that the configure tasks created
+          file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - "/etc/systemd/system/{{ kamailio_service_name }}.service"
+            - "{{ kamailio_config_file }}"
+            - "/etc/rsyslog.d/{{ kamailio_service_name }}.conf"
+            - "/etc/logrotate.d/{{ kamailio_service_name }}"
+            - "{{ kamailio_log_dir }}"
+
+        - name: Reload systemd
+          systemd:
+            daemon_reload: true
+
+        - name: Remove downloaded packages
+          apt:
+            clean: true

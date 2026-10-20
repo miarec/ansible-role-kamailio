@@ -1,0 +1,150 @@
+---
+# Builds the Kamailio test images (ghcr.io/miarec/kamailio:VERSION-DISTRO)
+# with the role's own install tasks. See "Test images" in README.md.
+name: Test images
+"on":
+  pull_request:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+    inputs:
+      kamailio_version:
+        description: >-
+          Kamailio version to build, for example 5.8.4. Leave empty to build
+          the versions in image/versions.json.
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Push only from master, on push or a manual run. Pull requests and manual
+  # runs on other branches only build and test.
+  PUSH: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master' }}
+
+jobs:
+  matrix:
+    name: Read versions
+    runs-on: ubuntu-24.04
+    outputs:
+      kamailio_versions: ${{ steps.versions.outputs.kamailio_versions }}
+      distros: ${{ steps.versions.outputs.distros }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Read image/versions.json
+        id: versions
+        env:
+          INPUT_VERSION: ${{ inputs.kamailio_version }}
+        run: |
+          if [[ -n "$INPUT_VERSION" ]]; then
+            if [[ ! "$INPUT_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::kamailio_version must look like 5.8.3, got '$INPUT_VERSION'"
+              exit 1
+            fi
+            versions=$(jq -cn --arg v "$INPUT_VERSION" '[$v]')
+          else
+            versions=$(jq -c .kamailio_versions image/versions.json)
+          fi
+          echo "kamailio_versions=$versions" >> "$GITHUB_OUTPUT"
+          echo "distros=$(jq -c .distros image/versions.json)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build (${{ matrix.kamailio_version }}, ${{ matrix.distro }}, ${{ matrix.arch }})
+    needs: matrix
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        kamailio_version: ${{ fromJSON(needs.matrix.outputs.kamailio_versions) }}
+        distro: ${{ fromJSON(needs.matrix.outputs.distros) }}
+        arch:
+          - amd64
+          - arm64
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      TAG: ghcr.io/${{ github.repository_owner }}/kamailio:${{ matrix.kamailio_version }}-${{ matrix.distro }}-${{ matrix.arch }}
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Build image
+        run: image/build.sh "$KAMAILIO_VERSION" "$DISTRO" "$TAG"
+        env:
+          KAMAILIO_VERSION: ${{ matrix.kamailio_version }}
+          DISTRO: ${{ matrix.distro }}
+          PY_COLORS: '1'
+          ANSIBLE_FORCE_COLOR: '1'
+          IMAGE_SOURCE: ${{ github.server_url }}/${{ github.repository }}
+          IMAGE_REVISION: ${{ github.sha }}
+
+      - name: Smoke test image
+        run: image/smoke-test.sh "$KAMAILIO_VERSION" "$TAG"
+        env:
+          KAMAILIO_VERSION: ${{ matrix.kamailio_version }}
+          PY_COLORS: '1'
+          ANSIBLE_FORCE_COLOR: '1'
+
+      - name: Log in to GitHub Container Registry
+        if: env.PUSH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        if: env.PUSH == 'true'
+        run: docker push "$TAG"
+
+  manifest:
+    name: manifest (${{ matrix.kamailio_version }}, ${{ matrix.distro }})
+    needs:
+      - matrix
+      - build
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        kamailio_version: ${{ fromJSON(needs.matrix.outputs.kamailio_versions) }}
+        distro: ${{ fromJSON(needs.matrix.outputs.distros) }}
+    env:
+      TAG: ghcr.io/${{ github.repository_owner }}/kamailio:${{ matrix.kamailio_version }}-${{ matrix.distro }}
+
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push the multi-arch manifest
+        run: |
+          docker buildx imagetools create --tag "$TAG" "$TAG-amd64" "$TAG-arm64"
+          docker buildx imagetools inspect "$TAG"

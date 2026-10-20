@@ -1,0 +1,4 @@
+{
+  "kamailio_versions": ["5.8.3"],
+  "distros": ["ubuntu2204", "ubuntu2404"]
+}
