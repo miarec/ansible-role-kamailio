@@ -112,8 +112,12 @@ production: production hosts build Kamailio with the role.
 
 - On pull requests, it builds and smoke-tests the images, but does not push them.
 - On pushes to `master`, it builds, smoke-tests, and pushes the images.
-- When run manually (`workflow_dispatch`), it builds and pushes the versions in
-  `image/versions.json`, or only the version in the `kamailio_version` input.
+- When run manually (`workflow_dispatch`) on `master`, it builds and pushes the
+  versions in `image/versions.json`, or only the version in the `kamailio_version`
+  input. A manual run on another branch builds and smoke-tests, but does not push.
+
+The first push of a new image name creates a private GHCR package; an organization
+owner must make it public once in the package settings (Change visibility).
 
 To add a version, add it to `image/versions.json` and merge the change to `master`.
 To build a version once without changing the file:

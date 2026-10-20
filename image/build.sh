@@ -50,7 +50,9 @@ start=$(date +%s)
 )
 echo "Role converge from scratch took $(($(date +%s) - start)) s"
 
-docker exec "$container" rm -rf /root/.ansible
+# Keep the apt lists: playbooks that use the image can install packages
+# without updating the cache first.
+docker exec "$container" sh -c 'rm -rf /root/.ansible /var/log/journal/*'
 docker stop "$container"
 
 docker commit \

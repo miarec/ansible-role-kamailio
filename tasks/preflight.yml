@@ -29,7 +29,7 @@
   service:
     name: unattended-upgrades
     state: stopped
-  when: "'unattended-upgrades' in services"
+  when: "'unattended-upgrades' in ansible_facts['services']"
 
 - name: Delete unattended-upgrades
   apt:
