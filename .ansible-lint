@@ -1,12 +1,11 @@
 ---
 exclude_paths:
-  - molecule/
+  - .venv/
 
 skip_list:
   - fqcn
   - yaml[line-length]
   - yaml[empty-lines]
   - yaml[trailing-spaces]
-  - yaml[truthy]
   - jinja[spacing]
   - name[template]

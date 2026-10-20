@@ -4,27 +4,26 @@
   become: true
 
   pre_tasks:
-    - set_fact:
+    - name: Define Kamailio version and configuration
+      set_fact:
         kamailio_version: "{{ lookup('env', 'KAMAILIO_VERSION') }}"
         kamailio_config_file_content: "{{ lookup('template', 'kamailio.cfg.j2') }}"
-
 
     - name: Install prerequisites
       block:
         - name: Update apt cache
-          when: ansible_os_family == "Debian"
+          when: ansible_facts['os_family'] == "Debian"
           apt:
             update_cache: true
             cache_valid_time: 600
           changed_when: false
 
-        - package:
-            name: "{{ item }}"
+        - name: Install rsyslog
+          package:
+            name: rsyslog
             state: present
-          with_items: 
-            - rsyslog
 
   roles:
-    - role: ansible-role-kamailio
+    - role: "{{ playbook_dir }}/../.." # noqa: role-name[path]
       tags:
         - kamailio

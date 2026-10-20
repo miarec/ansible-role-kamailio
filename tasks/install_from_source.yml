@@ -33,13 +33,13 @@
 - name: Configure Kamailio
   shell: |
      umask 0022 && \
-     make PREFIX="{{ kamailio_install_dir }}" -j{{ ansible_processor_cores | default(1) + 1 }} include_modules="{{ kamailio_include_modules }}" cfg
+     make PREFIX="{{ kamailio_install_dir }}" -j{{ ansible_facts['processor_cores'] | default(1) + 1 }} include_modules="{{ kamailio_include_modules }}" cfg
   args:
     chdir: "{{ kamailio_download_dir }}/kamailio-{{ kamailio_version }}"
     creates: "{{ kamailio_download_dir }}/kamailio-{{ kamailio_version}}/src/modules.lst"
 
 - name: Compile Kamailio
-  shell: umask 0022 && make -j{{ ansible_processor_cores | default(1) + 1 }} all
+  shell: umask 0022 && make -j{{ ansible_facts['processor_cores'] | default(1) + 1 }} all
   args:
     chdir: "{{ kamailio_download_dir }}/kamailio-{{ kamailio_version }}"
     creates: "{{ kamailio_download_dir }}/kamailio-{{ kamailio_version}}/src/kamailio"
