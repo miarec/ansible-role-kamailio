@@ -1,6 +1,6 @@
 ---
 
-kamailio_version: 5.8.2
+kamailio_version: 6.1.5
 
 kamailio_service_name: kamailio
 

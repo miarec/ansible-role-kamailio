@@ -3,7 +3,7 @@
 # the role skips the build, configures Kamailio, and starts the service.
 #
 # Usage: image/smoke-test.sh KAMAILIO_VERSION IMAGE_TAG
-#   image/smoke-test.sh 5.8.3 ghcr.io/miarec/kamailio:5.8.3-ubuntu2404
+#   image/smoke-test.sh 6.1.5 ghcr.io/miarec/kamailio:6.1.5-ubuntu2404
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then

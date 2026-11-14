@@ -2,7 +2,7 @@
 # Build a Kamailio test image with the role's own install tasks.
 #
 # Usage: image/build.sh KAMAILIO_VERSION DISTRO IMAGE_TAG
-#   image/build.sh 5.8.3 ubuntu2404 ghcr.io/miarec/kamailio:5.8.3-ubuntu2404
+#   image/build.sh 6.1.5 ubuntu2404 ghcr.io/miarec/kamailio:6.1.5-ubuntu2404
 #
 # The script starts a container from ghcr.io/miarec/DISTRO-systemd, runs the
 # role in it (the role builds Kamailio from source), removes the Kamailio
