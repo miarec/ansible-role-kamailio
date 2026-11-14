@@ -20,6 +20,11 @@ See `defaults/main.yml` for all variables. The most important ones:
   Required.
 - `kamailio_install_dir`: the installation directory (default `/opt/kamailio`).
 - `kamailio_include_modules`: extra modules to build (default `tls`).
+- `kamailio_source_patches`: patches of `files/patches/` that the role applies to the
+  source before it builds it. Each file says why it exists and when to remove it.
+  The build fails when a patch doesn't apply to `kamailio_version`, so check each
+  patch when you change the version. An empty list builds the release as it is.
+  The test images contain the default patches.
 
 ## Example playbook
 
@@ -100,6 +105,12 @@ platforms:
     privileged: true
     pre_build_image: true
 ```
+
+Each version and distribution also has an image built without the role's patches
+(`kamailio_source_patches: []`), tagged `<kamailio version>-unpatched-<distribution>`,
+for example `ghcr.io/miarec/kamailio:6.1.5-unpatched-ubuntu2604`. A playbook's tests
+run it to show what a patch fixes. Build one locally with `IMAGE_VARIANT=unpatched
+image/build.sh ...`.
 
 The image contains the Kamailio binaries, the `kamailio` user and group, the build
 dependencies, and `rsyslog`. It contains no Kamailio configuration, and the

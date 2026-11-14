@@ -21,6 +21,9 @@
   command: git config --global http.postBuffer 1048576000
   changed_when: false
 
+# force: a source tree that a failed build left has the patches applied,
+# which the git module would refuse as local modifications. The tasks below
+# apply them again to the clean tree.
 - name: Clone Kamailio GitHub repository
   git:
     repo: "{{ kamailio_repo_url }}"
@@ -29,6 +32,28 @@
     depth: 1
     recursive: false
     clone: true
+    force: true
+
+# The patches of kamailio_source_patches, from files/patches/. Each file says
+# why it exists and when to remove it. git apply fails the build when a patch
+# doesn't apply to the version, so that an upgrade checks each patch again.
+- name: Copy the patches of the Kamailio source
+  copy:
+    src: "patches/{{ item }}"
+    dest: "{{ kamailio_download_dir }}/kamailio-{{ kamailio_version }}.{{ item }}"
+    mode: "0644"
+  loop: "{{ kamailio_source_patches }}"
+
+- name: Apply the patches to the Kamailio source
+  command:
+    argv:
+      - git
+      - apply
+      - --verbose
+      - "{{ kamailio_download_dir }}/kamailio-{{ kamailio_version }}.{{ item }}"
+    chdir: "{{ kamailio_download_dir }}/kamailio-{{ kamailio_version }}"
+  loop: "{{ kamailio_source_patches }}"
+  changed_when: true
 
 - name: Configure Kamailio
   shell: |
@@ -73,3 +98,10 @@
     - "{{ kamailio_download_dir }}/kamailio-{{ kamailio_version }}.tar.gz"
   when: kamailio_cleanup_downloads|bool
   become: true
+
+- name: Clean up the patches
+  file:
+    path: "{{ kamailio_download_dir }}/kamailio-{{ kamailio_version }}.{{ item }}"
+    state: absent
+  loop: "{{ kamailio_source_patches }}"
+  when: kamailio_cleanup_downloads|bool

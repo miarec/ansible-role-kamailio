@@ -60,7 +60,7 @@ jobs:
           echo "distros=$(jq -c .distros image/versions.json)" >> "$GITHUB_OUTPUT"
 
   build:
-    name: build (${{ matrix.kamailio_version }}, ${{ matrix.distro }}, ${{ matrix.arch }})
+    name: build (${{ matrix.kamailio_version }}, ${{ matrix.distro }}, ${{ matrix.arch }}${{ matrix.variant && format(', {0}', matrix.variant) || '' }})
     needs: matrix
     runs-on: ${{ matrix.runner }}
     permissions:
@@ -71,6 +71,11 @@ jobs:
       matrix:
         kamailio_version: ${{ fromJSON(needs.matrix.outputs.kamailio_versions) }}
         distro: ${{ fromJSON(needs.matrix.outputs.distros) }}
+        # "": the default patches of the role. unpatched: without them, to
+        # show what a patch fixes (IMAGE_VARIANT of image/build.sh).
+        variant:
+          - ""
+          - unpatched
         arch:
           - amd64
           - arm64
@@ -80,7 +85,7 @@ jobs:
           - arch: arm64
             runner: ubuntu-24.04-arm
     env:
-      TAG: ghcr.io/${{ github.repository_owner }}/kamailio:${{ matrix.kamailio_version }}-${{ matrix.distro }}-${{ matrix.arch }}
+      TAG: ghcr.io/${{ github.repository_owner }}/kamailio:${{ matrix.kamailio_version }}-${{ matrix.variant && format('{0}-', matrix.variant) || '' }}${{ matrix.distro }}-${{ matrix.arch }}
 
     steps:
       - name: Check out the repository
@@ -94,6 +99,7 @@ jobs:
         env:
           KAMAILIO_VERSION: ${{ matrix.kamailio_version }}
           DISTRO: ${{ matrix.distro }}
+          IMAGE_VARIANT: ${{ matrix.variant }}
           PY_COLORS: '1'
           ANSIBLE_FORCE_COLOR: '1'
           IMAGE_SOURCE: ${{ github.server_url }}/${{ github.repository }}
@@ -119,7 +125,7 @@ jobs:
         run: docker push "$TAG"
 
   manifest:
-    name: manifest (${{ matrix.kamailio_version }}, ${{ matrix.distro }})
+    name: manifest (${{ matrix.kamailio_version }}, ${{ matrix.distro }}${{ matrix.variant && format(', {0}', matrix.variant) || '' }})
     needs:
       - matrix
       - build
@@ -133,8 +139,11 @@ jobs:
       matrix:
         kamailio_version: ${{ fromJSON(needs.matrix.outputs.kamailio_versions) }}
         distro: ${{ fromJSON(needs.matrix.outputs.distros) }}
+        variant:
+          - ""
+          - unpatched
     env:
-      TAG: ghcr.io/${{ github.repository_owner }}/kamailio:${{ matrix.kamailio_version }}-${{ matrix.distro }}
+      TAG: ghcr.io/${{ github.repository_owner }}/kamailio:${{ matrix.kamailio_version }}-${{ matrix.variant && format('{0}-', matrix.variant) || '' }}${{ matrix.distro }}
 
     steps:
       - name: Log in to GitHub Container Registry
