@@ -2,12 +2,16 @@
 # Build a Kamailio test image with the role's own install tasks.
 #
 # Usage: image/build.sh KAMAILIO_VERSION DISTRO IMAGE_TAG
-#   image/build.sh 5.8.3 ubuntu2404 ghcr.io/miarec/kamailio:5.8.3-ubuntu2404
+#   image/build.sh 6.1.5 ubuntu2404 ghcr.io/miarec/kamailio:6.1.5-ubuntu2404
 #
 # The script starts a container from ghcr.io/miarec/DISTRO-systemd, runs the
 # role in it (the role builds Kamailio from source), removes the Kamailio
 # configuration, and commits the container as IMAGE_TAG for the native
 # architecture of the Docker host.
+#
+# IMAGE_VARIANT=unpatched builds Kamailio without the role's patches
+# (kamailio_source_patches), to show what a patch fixes. Tag it
+# VERSION-unpatched-DISTRO. Without it, the image has the default patches.
 set -euo pipefail
 
 if [[ $# -ne 3 ]]; then
@@ -24,6 +28,20 @@ base_image="ghcr.io/miarec/${distro}-systemd:latest"
 source_url=${IMAGE_SOURCE:-https://github.com/miarec/ansible-role-kamailio}
 revision=${IMAGE_REVISION:-$(git -C "$repo_dir" rev-parse HEAD)}
 container="kamailio-image-build-${version}-${distro}-$$"
+variant=${IMAGE_VARIANT:-}
+variant_args=()
+description="Kamailio ${version} built by ansible-role-kamailio on ${distro}, for tests"
+case "$variant" in
+    "") ;;
+    unpatched)
+        variant_args=(--extra-vars '{"kamailio_source_patches": []}')
+        description="Kamailio ${version} built by ansible-role-kamailio on ${distro} without the role's patches, for tests"
+        ;;
+    *)
+        echo "IMAGE_VARIANT must be empty or unpatched, got '$variant'" >&2
+        exit 2
+        ;;
+esac
 
 cleanup() {
     docker rm --force --volumes "$container" >/dev/null 2>&1 || true
@@ -46,7 +64,8 @@ start=$(date +%s)
     uv run ansible-playbook image/playbook.yml \
         --inventory "${container}," \
         --connection community.docker.docker \
-        --extra-vars "kamailio_version=${version} kamailio_image_build=true"
+        --extra-vars "kamailio_version=${version} kamailio_image_build=true" \
+        "${variant_args[@]}"
 )
 echo "Role converge from scratch took $(($(date +%s) - start)) s"
 
@@ -58,7 +77,7 @@ docker stop "$container"
 docker commit \
     --change 'CMD ["/lib/systemd/systemd"]' \
     --change "LABEL org.opencontainers.image.title=kamailio" \
-    --change "LABEL org.opencontainers.image.description=\"Kamailio ${version} built by ansible-role-kamailio on ${distro}, for tests\"" \
+    --change "LABEL org.opencontainers.image.description=\"${description}\"" \
     --change "LABEL org.opencontainers.image.version=${version}" \
     --change "LABEL org.opencontainers.image.source=${source_url}" \
     --change "LABEL org.opencontainers.image.revision=${revision}" \

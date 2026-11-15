@@ -1,6 +1,6 @@
 ---
 
-kamailio_version: 5.8.2
+kamailio_version: 6.1.5
 
 kamailio_service_name: kamailio
 
@@ -21,6 +21,13 @@ kamailio_log_file: kamailio.log
 kamailio_logrotate_days: 30
 kamailio_syslog_facility: local0
 
+
+# Patches that the role applies to the Kamailio source before it builds it,
+# files of files/patches/. Each file says why it exists and when to remove
+# it. The build fails when a patch doesn't apply to kamailio_version. An
+# empty list builds the release as it is.
+kamailio_source_patches:
+  - dispatcher-ping-nodnsares.patch
 
 # A list of modules to pass to make command in "include_modules=" command-line argument
 kamailio_include_modules: "tls"

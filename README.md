@@ -7,7 +7,8 @@ The role builds Kamailio from source and installs it into `kamailio_install_dir`
 exists, the role skips the build and only configures Kamailio. To build again, set
 `kamailio_force_install: true`.
 
-Supported platforms: Ubuntu 22.04 (jammy) and Ubuntu 24.04 (noble).
+Supported platforms: Ubuntu 22.04 (jammy), Ubuntu 24.04 (noble), and Ubuntu 26.04
+(resolute).
 
 ## Role variables
 
@@ -19,6 +20,11 @@ See `defaults/main.yml` for all variables. The most important ones:
   Required.
 - `kamailio_install_dir`: the installation directory (default `/opt/kamailio`).
 - `kamailio_include_modules`: extra modules to build (default `tls`).
+- `kamailio_source_patches`: patches of `files/patches/` that the role applies to the
+  source before it builds it. Each file says why it exists and when to remove it.
+  The build fails when a patch doesn't apply to `kamailio_version`, so check each
+  patch when you change the version. An empty list builds the release as it is.
+  The test images contain the default patches.
 
 ## Example playbook
 
@@ -28,7 +34,7 @@ See `defaults/main.yml` for all variables. The most important ones:
   become: true
   roles:
     - role: kamailio
-      kamailio_version: 5.8.3
+      kamailio_version: 6.1.5
       kamailio_config_file_content: "{{ lookup('template', 'kamailio.cfg.j2') }}"
 ```
 
@@ -54,7 +60,7 @@ uv run molecule test
 
 # Test another distribution or Kamailio version
 MOLECULE_DISTRO=ubuntu2204 uv run molecule test
-MOLECULE_KAMAILIO_VERSION=5.8.4 uv run molecule test
+MOLECULE_KAMAILIO_VERSION=6.0.8 uv run molecule test
 ```
 
 The Molecule scenario loads the role by path, so the test also works when the role
@@ -63,11 +69,11 @@ playbook repository.
 
 Molecule variables:
 
-| Variable                     | Default      | Description                                  |
-|------------------------------|--------------|----------------------------------------------|
-| `MOLECULE_DISTRO`            | `ubuntu2404` | Container OS: `ubuntu2204` or `ubuntu2404`   |
-| `MOLECULE_KAMAILIO_VERSION`  | `5.8.3`      | Value of `kamailio_version`                  |
-| `MOLECULE_ANSIBLE_VERBOSITY` | `0`          | Ansible verbosity, 0-3 (same as `-v`-`-vvv`) |
+| Variable                     | Default      | Description                                                |
+|------------------------------|--------------|------------------------------------------------------------|
+| `MOLECULE_DISTRO`            | `ubuntu2404` | Container OS: `ubuntu2204`, `ubuntu2404`, or `ubuntu2604`  |
+| `MOLECULE_KAMAILIO_VERSION`  | `6.1.5`      | Value of `kamailio_version`                                |
+| `MOLECULE_ANSIBLE_VERBOSITY` | `0`          | Ansible verbosity, 0-3 (same as `-v`-`-vvv`)               |
 
 ## Test images
 
@@ -78,10 +84,10 @@ role's install tasks:
 ghcr.io/miarec/kamailio:<kamailio version>-<distribution>
 ```
 
-For example, `ghcr.io/miarec/kamailio:5.8.3-ubuntu2404`. Each image is multi-arch
+For example, `ghcr.io/miarec/kamailio:6.1.5-ubuntu2404`. Each image is multi-arch
 (`linux/amd64` and `linux/arm64`) and starts from
 `ghcr.io/miarec/<distribution>-systemd`. The per-architecture tags (for example
-`5.8.3-ubuntu2404-arm64`) are intermediate build results.
+`6.1.5-ubuntu2404-arm64`) are intermediate build results.
 
 Use the images in tests of playbooks that use this role. When the role runs against a
 container from the image, it finds `/opt/kamailio/sbin/kamailio`, skips the build,
@@ -91,7 +97,7 @@ systemd base image, for example in Molecule:
 ```yaml
 platforms:
   - name: kamailio
-    image: ghcr.io/miarec/kamailio:5.8.3-ubuntu2404
+    image: ghcr.io/miarec/kamailio:6.1.5-ubuntu2404
     command: ""
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
@@ -99,6 +105,12 @@ platforms:
     privileged: true
     pre_build_image: true
 ```
+
+Each version and distribution also has an image built without the role's patches
+(`kamailio_source_patches: []`), tagged `<kamailio version>-unpatched-<distribution>`,
+for example `ghcr.io/miarec/kamailio:6.1.5-unpatched-ubuntu2604`. A playbook's tests
+run it to show what a patch fixes. Build one locally with `IMAGE_VARIANT=unpatched
+image/build.sh ...`.
 
 The image contains the Kamailio binaries, the `kamailio` user and group, the build
 dependencies, and `rsyslog`. It contains no Kamailio configuration, and the
@@ -124,7 +136,7 @@ To add a version, add it to `image/versions.json` and merge the change to `maste
 To build a version once without changing the file:
 
 ```bash
-gh workflow run image.yml -f kamailio_version=5.8.4
+gh workflow run image.yml -f kamailio_version=6.0.8
 ```
 
 ### Build an image locally
@@ -136,6 +148,6 @@ role against a container from the new image and fails if the role builds Kamaili
 again or the service does not start.
 
 ```bash
-image/build.sh 5.8.3 ubuntu2404 ghcr.io/miarec/kamailio:5.8.3-ubuntu2404
-image/smoke-test.sh 5.8.3 ghcr.io/miarec/kamailio:5.8.3-ubuntu2404
+image/build.sh 6.1.5 ubuntu2404 ghcr.io/miarec/kamailio:6.1.5-ubuntu2404
+image/smoke-test.sh 6.1.5 ghcr.io/miarec/kamailio:6.1.5-ubuntu2404
 ```

@@ -13,8 +13,6 @@ kamailio_source_dependencies:
   - pkg-config
   - libssl-dev
   - libcurl4-openssl-dev
-  - libxml2
-  - libpcre3
 
 
 syslog_user: syslog

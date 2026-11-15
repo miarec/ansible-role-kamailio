@@ -23,7 +23,7 @@ provisioner:
   playbooks:
     converge: ${MOLECULE_PLAYBOOK:-converge.yml}
   env:
-    KAMAILIO_VERSION: ${MOLECULE_KAMAILIO_VERSION:-"5.8.3"}
+    KAMAILIO_VERSION: ${MOLECULE_KAMAILIO_VERSION:-"6.1.5"}
     ANSIBLE_VERBOSITY: ${MOLECULE_ANSIBLE_VERBOSITY:-0}
 
 verifier:
