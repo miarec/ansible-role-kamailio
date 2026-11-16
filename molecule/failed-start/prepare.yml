@@ -1,0 +1,31 @@
+---
+# The first run of the role: it writes the rsyslog rule, and then Kamailio
+# fails to start, because its configuration doesn't parse.
+- name: Run the role with a configuration that Kamailio can't parse
+  hosts: all
+  become: true
+
+  tasks:
+    - name: Run the role and expect it to fail to start Kamailio
+      block:
+        - name: Run the Kamailio role
+          include_role:
+            name: "{{ playbook_dir }}/../.." # noqa: role-name[path]
+          vars:
+            kamailio_config_file_content: "this is not a Kamailio configuration\n"
+
+        - name: Fail, because the role started Kamailio
+          fail:
+            msg: The role started Kamailio with a configuration that doesn't parse
+
+      rescue:
+        - name: Check that the role failed to start Kamailio
+          assert:
+            that:
+              - ansible_failed_task.name == 'Start Kamailio service'
+            fail_msg: "The role failed in an unexpected task: {{ ansible_failed_task.name }}"
+
+        # A failed run doesn't run the notified handlers. End the play for the
+        # host without running them, as a failed run does.
+        - name: End the run without running the notified handlers
+          meta: end_host

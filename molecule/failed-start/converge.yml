@@ -1,0 +1,11 @@
+---
+# The next run of the role, with a valid configuration.
+- name: Converge
+  hosts: all
+  become: true
+
+  vars:
+    kamailio_config_file_content: "{{ lookup('template', playbook_dir ~ '/../default/templates/kamailio.cfg.j2') }}"
+
+  roles:
+    - role: "{{ playbook_dir }}/../.." # noqa: role-name[path]

@@ -25,8 +25,18 @@
     owner: "root"
     group: "root"
     mode: "0644"
-  notify: 
-    - restart rsyslog
+  register: _kamailio_rsyslog_conf
+
+# Restart rsyslog here, not in a handler. A run that fails later, for example
+# when Kamailio doesn't start, doesn't run the notified handlers, and the next
+# run finds the rule unchanged. rsyslog then never loads the rule, and drops
+# Kamailio's log. flush_handlers doesn't help: it also runs "restart kamailio",
+# which the install tasks notify before the configuration and the service exist.
+- name: Restart rsyslog to load the Kamailio rule    # noqa no-handler
+  service:
+    name: rsyslog
+    state: restarted
+  when: _kamailio_rsyslog_conf is changed
 
 - name: Configure Kamailio logrotate
   template:

@@ -61,19 +61,23 @@ uv run molecule test
 # Test another distribution or Kamailio version
 MOLECULE_DISTRO=ubuntu2204 uv run molecule test
 MOLECULE_KAMAILIO_VERSION=6.0.8 uv run molecule test
+
+# Check that Kamailio's log reaches its log file after a run that failed to
+# start Kamailio. Uses the Kamailio test image, so it doesn't build Kamailio.
+uv run molecule test -s failed-start
 ```
 
-The Molecule scenario loads the role by path, so the test also works when the role
+The Molecule scenarios load the role by path, so the test also works when the role
 is checked out under another directory name, for example as `roles/kamailio` in a
 playbook repository.
 
 Molecule variables:
 
-| Variable                     | Default      | Description                                                |
-|------------------------------|--------------|------------------------------------------------------------|
-| `MOLECULE_DISTRO`            | `ubuntu2404` | Container OS: `ubuntu2204`, `ubuntu2404`, or `ubuntu2604`  |
-| `MOLECULE_KAMAILIO_VERSION`  | `6.1.5`      | Value of `kamailio_version`                                |
-| `MOLECULE_ANSIBLE_VERBOSITY` | `0`          | Ansible verbosity, 0-3 (same as `-v`-`-vvv`)               |
+| Variable                     | Default      | Description                                                                      |
+|------------------------------|--------------|----------------------------------------------------------------------------------|
+| `MOLECULE_DISTRO`            | `ubuntu2404` | Container OS: `ubuntu2204`, `ubuntu2404`, or `ubuntu2604`                        |
+| `MOLECULE_KAMAILIO_VERSION`  | `6.1.5`      | Value of `kamailio_version`, or the version of the test image in `failed-start` |
+| `MOLECULE_ANSIBLE_VERBOSITY` | `0`          | Ansible verbosity, 0-3 (same as `-v`-`-vvv`)                                     |
 
 ## Test images
 
