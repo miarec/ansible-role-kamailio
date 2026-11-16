@@ -1,0 +1,31 @@
+---
+# Checks that Kamailio's log reaches its log file after a first run of the role
+# fails to start Kamailio (issue #5). The prepare playbook runs the role with a
+# configuration that Kamailio can't parse, the converge playbook runs it with a
+# valid one, and the verify playbook sends a log line to Kamailio's syslog
+# facility.
+#
+# The scenario uses the Kamailio test image, so the role doesn't build Kamailio.
+prerun: false
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: kamailio-failed-start-${MOLECULE_DISTRO:-ubuntu2404}
+    image: ghcr.io/miarec/kamailio:${MOLECULE_KAMAILIO_VERSION:-6.1.5}-${MOLECULE_DISTRO:-ubuntu2404}
+    command: ${MOLECULE_DOCKER_COMMAND:-""}
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    privileged: true
+    pre_build_image: true
+    keep_volumes: false
+
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_VERBOSITY: ${MOLECULE_ANSIBLE_VERBOSITY:-0}
+
+verifier:
+  name: ansible

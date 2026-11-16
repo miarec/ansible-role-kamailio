@@ -4,12 +4,6 @@
     daemon_reload: true
   become: true
 
-- name: restart rsyslog       # noqa name[casing]
-  service:
-    name: rsyslog
-    state: restarted
-  become: true
-
 - name: restart kamailio       # noqa name[casing]
   service:
     name: "{{ kamailio_service_name }}"
